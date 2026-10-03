@@ -32,12 +32,21 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
-
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // A patch is one saved setting of the eight Koola10 Synth knobs.
+    // The field names mirror the parameter IDs in shared/parameter_schema.json.
+    synthPatches: defineTable({
+      userId: v.id("users"),
+      name: v.string(),
+      wavetablePosition: v.number(),
+      filterCutoff: v.number(),
+      filterResonance: v.number(),
+      attack: v.number(),
+      decay: v.number(),
+      sustain: v.number(),
+      release: v.number(),
+      outputGain: v.number(),
+      notes: v.optional(v.string()),
+    }).index("by_user", ["userId"]),
   },
   {
     schemaValidation: false,

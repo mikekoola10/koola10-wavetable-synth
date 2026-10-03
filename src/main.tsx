@@ -12,6 +12,9 @@ import "./index.css";
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const Patches = lazy(() => import("./pages/dashboard/Patches.tsx"));
+const SignalChain = lazy(() => import("./pages/dashboard/SignalChain.tsx"));
+const BuildGuide = lazy(() => import("./pages/dashboard/BuildGuide.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -126,11 +129,18 @@ createRoot(document.getElementById("root")!).render(
               <Route
                 path="/dashboard"
                 element={
-                  <RequireAuth>
+                  <RequireAuth
+                    title="Sign in to open your patch studio"
+                    description="Your saved Koola10 Synth patches and the build guide live here."
+                  >
                     <Dashboard />
                   </RequireAuth>
                 }
-              />
+              >
+                <Route index element={<Patches />} />
+                <Route path="signal-chain" element={<SignalChain />} />
+                <Route path="build-guide" element={<BuildGuide />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

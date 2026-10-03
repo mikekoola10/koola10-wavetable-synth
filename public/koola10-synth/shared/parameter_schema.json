@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.1.0",
+  "plugin": {
+    "id": "koola10_synth",
+    "name": "Koola10 Synth",
+    "type": "instrument",
+    "formats": ["VST3", "Standalone"],
+    "render_output": "audio/wav",
+    "render_notes": "Standard VST3 stereo audio out. No proprietary or wrapped formats are produced."
+  },
+  "parameter_groups": [
+    { "id": "oscillator", "name": "Oscillator", "dsp_stage": 1 },
+    { "id": "filter", "name": "Filter", "dsp_stage": 2 },
+    { "id": "amplitude", "name": "Amplitude Envelope", "dsp_stage": 3 },
+    { "id": "output", "name": "Output", "dsp_stage": 4 }
+  ],
+  "parameters": [
+    {
+      "id": "wavetable_position",
+      "name": "Wavetable Position",
+      "group": "oscillator",
+      "type": "float",
+      "range": { "min": 0.0, "max": 1.0, "skew": 1.0 },
+      "default": 0.0,
+      "unit": "normalized",
+      "automatable": true,
+      "dsp_stage": 1,
+      "description": "Morphs between the frames of the loaded wavetable. 0 is the first frame, 1 is the last."
+    },
+    {
+      "id": "filter_cutoff",
+      "name": "Filter Cutoff",
+      "group": "filter",
+      "type": "float",
+      "range": { "min": 20.0, "max": 20000.0, "unit": "Hz", "skew_centre": 1000.0 },
+      "default": 2000.0,
+      "unit": "Hz",
+      "automatable": true,
+      "dsp_stage": 2,
+      "description": "Cutoff frequency of the post-oscillator low-pass filter (juce::dsp::StateVariableTPTFilter)."
+    },
+    {
+      "id": "filter_resonance",
+      "name": "Filter Resonance",
+      "group": "filter",
+      "type": "float",
+      "range": { "min": 0.1, "max": 10.0, "skew": 1.0 },
+      "default": 0.707,
+      "unit": "Q",
+      "automatable": true,
+      "dsp_stage": 2,
+      "description": "Emphasis around the cutoff frequency. 0.707 is neutral in JUCE terms; higher values ring and self-oscillate."
+    },
+    {
+      "id": "amp_attack",
+      "name": "Amp Attack",
+      "group": "amplitude",
+      "type": "float",
+      "range": { "min": 0.001, "max": 5.0, "unit": "s", "skew_centre": 0.2 },
+      "default": 0.01,
+      "unit": "s",
+      "automatable": true,
+      "dsp_stage": 3,
+      "description": "Time taken to reach full level after a note starts."
+    },
+    {
+      "id": "amp_decay",
+      "name": "Amp Decay",
+      "group": "amplitude",
+      "type": "float",
+      "range": { "min": 0.001, "max": 5.0, "unit": "s", "skew_centre": 0.3 },
+      "default": 0.3,
+      "unit": "s",
+      "automatable": true,
+      "dsp_stage": 3,
+      "description": "Time taken to fall from full level to the sustain level."
+    },
+    {
+      "id": "amp_sustain",
+      "name": "Amp Sustain",
+      "group": "amplitude",
+      "type": "float",
+      "range": { "min": 0.0, "max": 1.0, "skew": 1.0 },
+      "default": 0.7,
+      "unit": "level",
+      "automatable": true,
+      "dsp_stage": 3,
+      "description": "Held level while a note is held down, after attack and decay have finished."
+    },
+    {
+      "id": "amp_release",
+      "name": "Amp Release",
+      "group": "amplitude",
+      "type": "float",
+      "range": { "min": 0.001, "max": 10.0, "unit": "s", "skew_centre": 0.5 },
+      "default": 0.4,
+      "unit": "s",
+      "automatable": true,
+      "dsp_stage": 3,
+      "description": "Time taken to fade to silence after the key is released."
+    },
+    {
+      "id": "output_gain",
+      "name": "Master Level",
+      "group": "output",
+      "type": "float",
+      "range": { "min": -24.0, "max": 12.0, "skew": 1.0 },
+      "default": 0.0,
+      "unit": "dB",
+      "automatable": true,
+      "dsp_stage": 4,
+      "description": "Final output level applied after the amplifier envelope."
+    }
+  ],
+  "non_automatable_state": [
+    {
+      "id": "wavetable_file",
+      "name": "Wavetable File",
+      "type": "string",
+      "description": "Absolute path of the loaded .wav wavetable, stored in the plugin state so a session recalls the same table."
+    }
+  ]
+}
