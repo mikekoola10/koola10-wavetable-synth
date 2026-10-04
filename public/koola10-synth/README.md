@@ -582,6 +582,35 @@ A user preset will not load
     User presets are .koola10preset files. If LOAD seems to do nothing, open
     the file in a text editor and check that the root tag is KOOLA10_PRESET.
 
+"Debug Assertion Failed!" at startup in a Debug build (debug_heap.cpp,
+    is_block_type_valid(header->_block_use)):
+    This is a Debug-CRT heap check firing in the JUCE/C runtime layer, not in
+    the synth code — it can even appear in JUCE's own juce_vst3_helper.exe.
+    Two things cause it, and the fix is the same for both:
+
+    1. A build/ folder left over from an older compiler. Visual Studio 2022
+       17.10+ and Visual Studio 2026 changed how std::mutex is constructed in
+       the MSVC standard library, and mixing object files built by different
+       toolchains corrupts the heap on the first mutex lock. Never reuse a
+       build/ tree after installing a new Visual Studio: delete the build/
+       folder and configure fresh.
+
+    2. JUCE older than 8.0.12. Visual Studio 2026 support was only added in
+       JUCE 8.0.11 and made the default in 8.0.12. CMakeLists.txt now fetches
+       8.0.12 or newer. If you had pinned an older revision, raise GIT_TAG,
+       then delete build/ so the new JUCE is downloaded and built cleanly.
+
+    CMakeLists.txt also defines _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR for MSVC,
+    Microsoft's documented escape hatch for the std::mutex aspect above. To
+    rebuild Debug from scratch in one step, from plugin-juce/:
+
+        rmdir /s /q build
+        cmake -B build -G "Visual Studio 18 2026" -A x64
+        cmake --build build --config Debug
+
+    (Use the generator name your Visual Studio install reports.) Release
+    builds are unaffected and remain the recommended build for making music.
+
 
 --------------------------------------------------------------------------
 15. LICENSING

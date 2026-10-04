@@ -8,6 +8,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
     # Build the .cpp files in parallel. Harmless on other toolchains.
     add_compile_options(/MP)
+
+    # Visual Studio 2022 17.10+ (and Visual Studio 2026) ships an MSVC STL in
+    # which std::mutex's constructor is constexpr. When object files produced by
+    # a different toolchain/STL revision end up in the same link - which happens
+    # if a stale build/ tree is reused after a compiler upgrade - the first
+    # mutex lock can fail a Debug-heap check (debug_heap.cpp,
+    # "is_block_type_valid(header->_block_use)"). Defining
+    # _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR restores the previous mutex
+    # construction behaviour for every translation unit and is Microsoft's
+    # documented escape hatch for this class of crash. It is harmless on toolchains
+    # that do not need it.
+    add_compile_definitions(_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -21,9 +33,15 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/JUCE/CMakeLists.txt")
 else()
     include(FetchContent)
 
+    # 8.0.12 is the first JUCE release that officially supports Visual Studio
+    # 2026 (VS2026 support landed in 8.0.11 and became the default in 8.0.12).
+    # JUCE 8.0.4 predates that work; building it with the VS2026 Debug CRT is
+    # what produced the startup Debug-heap assertion. If you ever need to pin a
+    # different revision, change GIT_TAG below and delete the build/ tree so the
+    # new JUCE is fetched and compiled cleanly.
     FetchContent_Declare(JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        8.0.4
+        GIT_TAG        8.0.12
         GIT_SHALLOW    TRUE)
 
     FetchContent_MakeAvailable(JUCE)

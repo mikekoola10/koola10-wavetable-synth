@@ -115,13 +115,21 @@ bool SynthEngine::loadWavetableFromMemory (const void* data, size_t numBytes,
     // The factory waves are plain WAV files, so we can decode them straight
     // from the static bytes that juce_add_binary_data baked into the binary.
     juce::WavAudioFormat wavFormat;
-    juce::MemoryInputStream stream (data, numBytes, false); // does not own `data`
+
+    // `stream` does not own `data` (the BinaryData bytes outlive this call), and
+    // `reader` is declared after it, so `reader` is destroyed before `stream` at
+    // the end of this function. `createReaderFor` is passed ownsStream=false, so
+    // the reader only borrows the stream - the two lifetimes are therefore
+    // consistent and no reader ever outlives its stream, in Debug or Release.
+    juce::MemoryInputStream stream (data, numBytes, false);
 
     std::unique_ptr<juce::AudioFormatReader> reader (wavFormat.createReaderFor (&stream, false));
 
     if (reader == nullptr)
         return false;
 
+    // installFromReader reads the whole file before returning, so it never
+    // retains a reference to the stream or the reader.
     return installFromReader (*reader, displayName);
 }
 
