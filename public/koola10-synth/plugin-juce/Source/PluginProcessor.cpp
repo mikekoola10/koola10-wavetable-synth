@@ -1,6 +1,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include "FactoryWaves.h"
+#include "Presets.h"
+
 //==============================================================================
 namespace
 {
@@ -20,6 +23,12 @@ namespace
 
         return 0.0f;
     }
+
+    /** Every knob readout in v2 is a percentage of the knob's travel. */
+    juce::String percentString (float proportion)
+    {
+        return juce::String (juce::roundToInt (juce::jlimit (0.0f, 1.0f, proportion) * 100.0f)) + " %";
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -33,23 +42,24 @@ Koola10SynthAudioProcessor::createParameterLayout()
         "Wavetable Position",
         juce::NormalisableRange<float> (0.0f, 1.0f),
         0.0f,
-        juce::AudioParameterFloatAttributes().withLabel ("pos")
+        juce::AudioParameterFloatAttributes().withLabel ("%")
             .withStringFromValueFunction ([] (float value, int)
             {
-                return juce::String (juce::roundToInt (value * 100.0f)) + " %";
+                return percentString (value);
             })));
 
     // --- STAGE 2: filter --------------------------------------------------
+    // Opens around 2.5 kHz on first launch, which is musically open rather than
+    // near-closed. The readout is always in kHz.
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::filterCutoff, 1 },
         "Filter Cutoff",
         makeFrequencyRange (20.0f, 20000.0f, 1000.0f),
-        2000.0f,
-        juce::AudioParameterFloatAttributes().withLabel ("Hz")
+        2500.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("kHz")
             .withStringFromValueFunction ([] (float value, int)
             {
-                return value >= 1000.0f ? juce::String (value / 1000.0f, 2) + " kHz"
-                                        : juce::String (value, 0) + " Hz";
+                return juce::String (value / 1000.0f, 2) + " kHz";
             })));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -57,50 +67,76 @@ Koola10SynthAudioProcessor::createParameterLayout()
         "Filter Resonance",
         juce::NormalisableRange<float> (0.1f, 10.0f, 0.001f),
         0.707f,
-        juce::AudioParameterFloatAttributes().withLabel ("Q")
+        juce::AudioParameterFloatAttributes().withLabel ("%")
             .withStringFromValueFunction ([] (float value, int)
             {
                 // 0.707 is "no resonance" in JUCE, so re-scale for the display.
-                const float percent = juce::jlimit (0.0f, 1.0f, (value - 0.707f) / (10.0f - 0.707f));
-                return juce::String (juce::roundToInt (percent * 100.0f)) + " %";
+                const float amount = juce::jlimit (0.0f, 1.0f, (value - 0.707f) / (10.0f - 0.707f));
+                return percentString (amount);
             })));
 
     // --- STAGE 3: amplitude envelope --------------------------------------
+    auto attackRange  = makeFrequencyRange (0.001f, 5.0f, 0.2f);
+    auto decayRange   = makeFrequencyRange (0.001f, 5.0f, 0.3f);
+    auto releaseRange = makeFrequencyRange (0.001f, 10.0f, 0.5f);
+
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::ampAttack, 1 },
         "Amp Attack",
-        makeFrequencyRange (0.001f, 5.0f, 0.2f),
+        attackRange,
         0.010f,
-        juce::AudioParameterFloatAttributes().withLabel ("s")));
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([attackRange] (float value, int)
+            {
+                return percentString (attackRange.convertTo0to1 (value));
+            })));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::ampDecay, 1 },
         "Amp Decay",
-        makeFrequencyRange (0.001f, 5.0f, 0.3f),
+        decayRange,
         0.300f,
-        juce::AudioParameterFloatAttributes().withLabel ("s")));
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([decayRange] (float value, int)
+            {
+                return percentString (decayRange.convertTo0to1 (value));
+            })));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::ampSustain, 1 },
         "Amp Sustain",
         juce::NormalisableRange<float> (0.0f, 1.0f),
         0.700f,
-        juce::AudioParameterFloatAttributes().withLabel ("level")));
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([] (float value, int)
+            {
+                return percentString (value);
+            })));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::ampRelease, 1 },
         "Amp Release",
-        makeFrequencyRange (0.001f, 10.0f, 0.5f),
+        releaseRange,
         0.400f,
-        juce::AudioParameterFloatAttributes().withLabel ("s")));
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([releaseRange] (float value, int)
+            {
+                return percentString (releaseRange.convertTo0to1 (value));
+            })));
 
     // --- STAGE 4: output --------------------------------------------------
+    // Master Level is a linear 0..1 level so it reads naturally as a
+    // percentage. 0.7 is audible straight away without touching a knob.
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { ParamIDs::outputGain, 1 },
         "Master Level",
-        juce::NormalisableRange<float> (-24.0f, 12.0f, 0.1f),
-        0.0f,
-        juce::AudioParameterFloatAttributes().withLabel ("dB")));
+        juce::NormalisableRange<float> (0.0f, 1.0f),
+        0.700f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")
+            .withStringFromValueFunction ([] (float value, int)
+            {
+                return percentString (value);
+            })));
 
     return layout;
 }
@@ -110,6 +146,9 @@ Koola10SynthAudioProcessor::Koola10SynthAudioProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, "KOOLA10_SYNTH_STATE", createParameterLayout())
 {
+    // Make a sound on first launch without touching a knob: load a bright
+    // factory wave and leave the (already musical) parameter defaults alone.
+    loadFactoryWaveByName ("Classic Saw");
 }
 
 Koola10SynthAudioProcessor::~Koola10SynthAudioProcessor() = default;
@@ -145,7 +184,10 @@ void Koola10SynthAudioProcessor::pushParametersToEngine()
                                  readParameter (parameters, ParamIDs::ampDecay),
                                  readParameter (parameters, ParamIDs::ampSustain),
                                  readParameter (parameters, ParamIDs::ampRelease));
-    engine.setMasterGainDecibels (readParameter (parameters, ParamIDs::outputGain));
+
+    // Master Level is a linear level; the engine works in decibels.
+    const float level = juce::jlimit (0.0f, 1.0f, readParameter (parameters, ParamIDs::outputGain));
+    engine.setMasterGainDecibels (juce::Decibels::gainToDecibels (level, -60.0f));
 }
 
 void Koola10SynthAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
@@ -185,13 +227,114 @@ juce::AudioProcessorEditor* Koola10SynthAudioProcessor::createEditor()
 }
 
 //==============================================================================
-bool Koola10SynthAudioProcessor::loadWavetableFromFile (const juce::File& file)
+void Koola10SynthAudioProcessor::setParameterValue (const char* parameterID, float value)
+{
+    if (auto* parameter = parameters.getParameter (parameterID))
+        parameter->setValueNotifyingHost (parameter->convertTo0to1 (value));
+}
+
+void Koola10SynthAudioProcessor::rememberUserWave (const juce::File& file)
+{
+    const auto path = file.getFullPathName();
+
+    for (const auto& existing : userWaveFiles)
+        if (existing.getFullPathName() == path)
+            return;
+
+    if (userWaveFiles.size() >= maxUserWaves)
+        userWaveFiles.remove (0);
+
+    userWaveFiles.add (file);
+}
+
+//==============================================================================
+bool Koola10SynthAudioProcessor::loadWavetableFromFile (const juce::File& file, bool rememberInUserList)
 {
     if (! engine.loadWavetableFile (file))
         return false;
 
     currentWavetableFile = file;
+    currentFactoryWaveName.clear();
+    currentFactoryWaveIndex = -1;
+
+    if (rememberInUserList)
+        rememberUserWave (file);
+
     return true;
+}
+
+bool Koola10SynthAudioProcessor::loadFactoryWave (int index)
+{
+    if (! FactoryWaves::loadIntoEngine (engine, index))
+        return false;
+
+    currentFactoryWaveIndex = index;
+    currentFactoryWaveName = FactoryWaves::getWave (index).name;
+    currentWavetableFile = juce::File();
+
+    return true;
+}
+
+bool Koola10SynthAudioProcessor::loadFactoryWaveByName (const juce::String& name)
+{
+    const int index = FactoryWaves::indexOfName (name);
+    return index >= 0 && loadFactoryWave (index);
+}
+
+//==============================================================================
+void Koola10SynthAudioProcessor::applyFactoryPreset (int index)
+{
+    if (! juce::isPositiveAndBelow (index, Presets::getNumFactoryPresets()))
+        return;
+
+    const auto& preset = Presets::getFactoryPreset (index);
+
+    setParameterValue (ParamIDs::wavetablePosition, preset.wavetablePosition);
+    setParameterValue (ParamIDs::filterCutoff,      preset.filterCutoff);
+    setParameterValue (ParamIDs::filterResonance,   preset.filterResonance);
+    setParameterValue (ParamIDs::ampAttack,         preset.attack);
+    setParameterValue (ParamIDs::ampDecay,          preset.decay);
+    setParameterValue (ParamIDs::ampSustain,        preset.sustain);
+    setParameterValue (ParamIDs::ampRelease,        preset.release);
+    setParameterValue (ParamIDs::outputGain,        preset.masterLevel);
+
+    loadFactoryWaveByName (preset.waveName);
+
+    currentPresetIndex = index;
+    currentPresetName = preset.name;
+
+    pushParametersToEngine();
+}
+
+//==============================================================================
+void Koola10SynthAudioProcessor::applyStateTree (juce::ValueTree state)
+{
+    const juce::String factoryWave = state.getProperty ("factoryWave", juce::String());
+    const juce::String filePath    = state.getProperty ("wavetableFile", juce::String());
+    const juce::String presetName  = state.getProperty ("presetName", juce::String());
+
+    state.removeProperty ("factoryWave", nullptr);
+    state.removeProperty ("wavetableFile", nullptr);
+    state.removeProperty ("presetName", nullptr);
+
+    parameters.replaceState (state);
+
+    currentPresetName = presetName;
+    currentPresetIndex = Presets::indexOfName (presetName);
+
+    if (factoryWave.isNotEmpty())
+    {
+        loadFactoryWaveByName (factoryWave);
+    }
+    else if (filePath.isNotEmpty())
+    {
+        const juce::File file (filePath);
+
+        if (file.existsAsFile())
+            loadWavetableFromFile (file, false);
+    }
+
+    pushParametersToEngine();
 }
 
 //==============================================================================
@@ -199,8 +342,10 @@ void Koola10SynthAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
 {
     auto state = parameters.copyState();
 
-    // Remember which .wav the user loaded so the next session finds it again.
+    // Remember the selected wave so the next session finds it again.
     state.setProperty ("wavetableFile", currentWavetableFile.getFullPathName(), nullptr);
+    state.setProperty ("factoryWave", currentFactoryWaveName, nullptr);
+    state.setProperty ("presetName", currentPresetName, nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -213,20 +358,48 @@ void Koola10SynthAudioProcessor::setStateInformation (const void* data, int size
     if (xml == nullptr || ! xml->hasTagName (parameters.state.getType()))
         return;
 
-    auto state = juce::ValueTree::fromXml (*xml);
+    applyStateTree (juce::ValueTree::fromXml (*xml));
+}
 
-    const juce::String storedPath = state.getProperty ("wavetableFile", juce::String());
-    state.removeProperty ("wavetableFile", nullptr);
+//==============================================================================
+bool Koola10SynthAudioProcessor::savePresetToFile (const juce::File& file)
+{
+    auto state = parameters.copyState();
+    state.setProperty ("wavetableFile", currentWavetableFile.getFullPathName(), nullptr);
+    state.setProperty ("factoryWave", currentFactoryWaveName, nullptr);
+    state.setProperty ("presetName", currentPresetName.isNotEmpty()
+                                        ? currentPresetName
+                                        : file.getFileNameWithoutExtension(), nullptr);
 
-    parameters.replaceState (state);
+    juce::ValueTree root ("KOOLA10_PRESET");
+    root.setProperty ("version", 1, nullptr);
+    root.appendChild (state, nullptr);
 
-    if (storedPath.isNotEmpty())
-    {
-        const juce::File wavetableFile (storedPath);
+    if (auto xml = root.createXml())
+        return xml->writeTo (file);
 
-        if (wavetableFile.existsAsFile())
-            loadWavetableFromFile (wavetableFile);
-    }
+    return false;
+}
+
+bool Koola10SynthAudioProcessor::loadPresetFromFile (const juce::File& file)
+{
+    std::unique_ptr<juce::XmlElement> xml (juce::XmlDocument::parse (file));
+
+    if (xml == nullptr)
+        return false;
+
+    const auto root = juce::ValueTree::fromXml (*xml);
+
+    // Accept both a wrapped .koola10preset file and a bare APVTS state tree.
+    juce::ValueTree state = root.hasType (parameters.state.getType())
+                              ? root
+                              : root.getChildWithName (parameters.state.getType());
+
+    if (! state.isValid())
+        return false;
+
+    applyStateTree (state);
+    return true;
 }
 
 //==============================================================================

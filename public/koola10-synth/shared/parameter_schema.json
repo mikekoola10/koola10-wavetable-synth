@@ -1,8 +1,9 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "2.0.0",
   "plugin": {
     "id": "koola10_synth",
     "name": "Koola10 Synth",
+    "version": "2.0.0",
     "type": "instrument",
     "formats": ["VST3", "Standalone"],
     "render_output": "audio/wav",
@@ -22,10 +23,10 @@
       "type": "float",
       "range": { "min": 0.0, "max": 1.0, "skew": 1.0 },
       "default": 0.0,
-      "unit": "normalized",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 1,
-      "description": "Morphs between the frames of the loaded wavetable. 0 is the first frame, 1 is the last."
+      "description": "Moves through the 2048-sample frames of the loaded wavetable, linearly crossfading between the two neighbouring frames. 0 is the first frame, 1 is the last. Reads as a percentage."
     },
     {
       "id": "filter_cutoff",
@@ -33,11 +34,11 @@
       "group": "filter",
       "type": "float",
       "range": { "min": 20.0, "max": 20000.0, "unit": "Hz", "skew_centre": 1000.0 },
-      "default": 2000.0,
-      "unit": "Hz",
+      "default": 2500.0,
+      "unit": "kHz",
       "automatable": true,
       "dsp_stage": 2,
-      "description": "Cutoff frequency of the post-oscillator low-pass filter (juce::dsp::StateVariableTPTFilter)."
+      "description": "Cutoff frequency of the post-oscillator low-pass filter (juce::dsp::StateVariableTPTFilter). The knob readout shows kHz. Opens at 2.50 kHz on first launch so the synth is audible without touching a knob."
     },
     {
       "id": "filter_resonance",
@@ -46,10 +47,10 @@
       "type": "float",
       "range": { "min": 0.1, "max": 10.0, "skew": 1.0 },
       "default": 0.707,
-      "unit": "Q",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 2,
-      "description": "Emphasis around the cutoff frequency. 0.707 is neutral in JUCE terms; higher values ring and self-oscillate."
+      "description": "Emphasis around the cutoff frequency. 0.707 is neutral in JUCE terms (shown as 0 %); higher values ring and self-oscillate. Reads as a percentage."
     },
     {
       "id": "amp_attack",
@@ -58,10 +59,10 @@
       "type": "float",
       "range": { "min": 0.001, "max": 5.0, "unit": "s", "skew_centre": 0.2 },
       "default": 0.01,
-      "unit": "s",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 3,
-      "description": "Time taken to reach full level after a note starts."
+      "description": "Time taken to reach full level after a note starts. Reads as a percentage of the knob's travel."
     },
     {
       "id": "amp_decay",
@@ -70,10 +71,10 @@
       "type": "float",
       "range": { "min": 0.001, "max": 5.0, "unit": "s", "skew_centre": 0.3 },
       "default": 0.3,
-      "unit": "s",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 3,
-      "description": "Time taken to fall from full level to the sustain level."
+      "description": "Time taken to fall from full level to the sustain level. Reads as a percentage of the knob's travel."
     },
     {
       "id": "amp_sustain",
@@ -82,10 +83,10 @@
       "type": "float",
       "range": { "min": 0.0, "max": 1.0, "skew": 1.0 },
       "default": 0.7,
-      "unit": "level",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 3,
-      "description": "Held level while a note is held down, after attack and decay have finished."
+      "description": "Held level while a note is held down, after attack and decay have finished. Reads as a percentage."
     },
     {
       "id": "amp_release",
@@ -94,30 +95,62 @@
       "type": "float",
       "range": { "min": 0.001, "max": 10.0, "unit": "s", "skew_centre": 0.5 },
       "default": 0.4,
-      "unit": "s",
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 3,
-      "description": "Time taken to fade to silence after the key is released."
+      "description": "Time taken to fade to silence after the key is released. Reads as a percentage of the knob's travel."
     },
     {
       "id": "output_gain",
       "name": "Master Level",
       "group": "output",
       "type": "float",
-      "range": { "min": -24.0, "max": 12.0, "skew": 1.0 },
-      "default": 0.0,
-      "unit": "dB",
+      "range": { "min": 0.0, "max": 1.0, "skew": 1.0 },
+      "default": 0.7,
+      "unit": "%",
       "automatable": true,
       "dsp_stage": 4,
-      "description": "Final output level applied after the amplifier envelope."
+      "description": "Final output level (a linear 0..1 level, shown as a percentage) applied after the amplifier envelope. 70 % on first launch so the synth is audible immediately."
     }
+  ],
+  "factory_waves": {
+    "note": "24 single-cycle wavetables, 2048 samples, mono 16-bit 44.1 kHz, embedded in the plugin binary with juce_add_binary_data. Regenerate with plugin-juce/factory_waves_gen.py.",
+    "categories": [
+      { "name": "Sub", "waves": ["Sub Sine", "Fat 808", "Deep Triangle", "Sub Pulse"] },
+      { "name": "Bass", "waves": ["Reese", "Hollow Bass", "Acid Saw", "Wobble Fifth", "Growl Lite"] },
+      { "name": "Lead", "waves": ["Classic Saw", "Square 50", "Pulse 25", "Bright Pluck", "Nasty Lead"] },
+      { "name": "Pad-Keys", "waves": ["Soft Saw", "Airy", "E-Piano", "Mellow Keys", "Glass"] },
+      { "name": "FX", "waves": ["Vocal Ah", "Bellish", "Digital Crush", "Static Cycle", "Sweep Up"] }
+    ]
+  },
+  "factory_presets": [
+    "Deep Sub",
+    "Reese Bass",
+    "Acid Saw",
+    "Bright Pluck",
+    "Nasty Lead",
+    "Airy Pad",
+    "E-Piano Keys",
+    "Vocal FX"
   ],
   "non_automatable_state": [
     {
       "id": "wavetable_file",
       "name": "Wavetable File",
       "type": "string",
-      "description": "Absolute path of the loaded .wav wavetable, stored in the plugin state so a session recalls the same table."
+      "description": "Absolute path of a user-loaded .wav wavetable, stored in the plugin state so a session recalls the same table."
+    },
+    {
+      "id": "factory_wave",
+      "name": "Factory Wave",
+      "type": "string",
+      "description": "Name of the selected built-in wave (for example \"Classic Saw\"), stored alongside wavetable_file so the browser selection round-trips."
+    },
+    {
+      "id": "preset_name",
+      "name": "Preset Name",
+      "type": "string",
+      "description": "Name of the active factory preset, or the name stored in a user .koola10preset file."
     }
   ]
 }

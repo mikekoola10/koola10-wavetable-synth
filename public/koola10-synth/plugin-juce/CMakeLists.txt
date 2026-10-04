@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Koola10Synth VERSION 1.0.0 LANGUAGES C CXX)
+project(Koola10Synth VERSION 2.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -30,6 +30,43 @@ else()
 endif()
 
 # ---------------------------------------------------------------------------
+# Factory wavetables
+#
+# These 24 single-cycle .wav files are baked into the plugin binary, so the
+# instrument ships with sounds and never needs to find a file on disk. The
+# generated header is #include "BinaryData.h" and each file is available as
+# BinaryData::<name>, e.g. BinaryData::Sub_Sine_wav.
+#
+# Regenerate the .wav files with: python3 factory_waves_gen.py
+# ---------------------------------------------------------------------------
+juce_add_binary_data(Koola10FactoryWaves
+    SOURCES
+        "factory_waves/Sub/Sub Sine.wav"
+        "factory_waves/Sub/Fat 808.wav"
+        "factory_waves/Sub/Deep Triangle.wav"
+        "factory_waves/Sub/Sub Pulse.wav"
+        "factory_waves/Bass/Reese.wav"
+        "factory_waves/Bass/Hollow Bass.wav"
+        "factory_waves/Bass/Acid Saw.wav"
+        "factory_waves/Bass/Wobble Fifth.wav"
+        "factory_waves/Bass/Growl Lite.wav"
+        "factory_waves/Lead/Classic Saw.wav"
+        "factory_waves/Lead/Square 50.wav"
+        "factory_waves/Lead/Pulse 25.wav"
+        "factory_waves/Lead/Bright Pluck.wav"
+        "factory_waves/Lead/Nasty Lead.wav"
+        "factory_waves/Pad-Keys/Soft Saw.wav"
+        "factory_waves/Pad-Keys/Airy.wav"
+        "factory_waves/Pad-Keys/E-Piano.wav"
+        "factory_waves/Pad-Keys/Mellow Keys.wav"
+        "factory_waves/Pad-Keys/Glass.wav"
+        "factory_waves/FX/Vocal Ah.wav"
+        "factory_waves/FX/Bellish.wav"
+        "factory_waves/FX/Digital Crush.wav"
+        "factory_waves/FX/Static Cycle.wav"
+        "factory_waves/FX/Sweep Up.wav")
+
+# ---------------------------------------------------------------------------
 # The plugin
 # ---------------------------------------------------------------------------
 juce_add_plugin(Koola10Synth
@@ -38,7 +75,7 @@ juce_add_plugin(Koola10Synth
     PLUGIN_CODE                 Kl10
     FORMATS                     VST3 Standalone
     PRODUCT_NAME                "Koola10 Synth"
-    DESCRIPTION                 "Wavetable synthesiser: oscillator, low-pass filter, ADSR amplitude envelope."
+    DESCRIPTION                 "Wavetable synthesiser: frame-based oscillator, low-pass filter, ADSR amplitude envelope."
     IS_SYNTH                    TRUE
     NEEDS_MIDI_INPUT            TRUE
     NEEDS_MIDI_OUTPUT           FALSE
@@ -48,6 +85,8 @@ juce_add_plugin(Koola10Synth
     VST3_CATEGORIES             Instrument Synth)
 
 target_sources(Koola10Synth PRIVATE
+    Source/FactoryWaves.cpp
+    Source/Presets.cpp
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/SynthEngine.cpp)
@@ -64,6 +103,7 @@ target_link_libraries(Koola10Synth
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        Koola10FactoryWaves
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

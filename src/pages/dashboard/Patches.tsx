@@ -71,7 +71,7 @@ export default function Patches() {
   const exportJson = useMemo(
     () => () => {
       const payload = {
-        schema_version: "1.1.0",
+        schema_version: "2.0.0",
         plugin: "koola10_synth",
         preset_name: name.trim() || "Untitled patch",
         parameters: Object.entries(PATCH_KEY).map(([id, key]) => ({

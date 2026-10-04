@@ -42,7 +42,7 @@ export const PARAMETERS: SynthParam[] = [
     max: 1,
     step: 0.001,
     default: 0,
-    unit: "normalized",
+    unit: "%",
     whatItDoes:
       "Chooses where you are inside the loaded wavetable. 0 sits on the first frame, 1 on the last, and it slides smoothly between every frame in between.",
     whatYouHear:
@@ -57,7 +57,7 @@ export const PARAMETERS: SynthParam[] = [
     min: 20,
     max: 20000,
     step: 1,
-    default: 2000,
+    default: 2500,
     unit: "Hz",
     curve: "log",
     whatItDoes:
@@ -151,16 +151,16 @@ export const PARAMETERS: SynthParam[] = [
     label: "Master Level",
     group: "Output",
     dspStage: 4,
-    min: -24,
-    max: 12,
-    step: 0.1,
-    default: 0,
-    unit: "dB",
+    min: 0,
+    max: 1,
+    step: 0.01,
+    default: 0.7,
+    unit: "%",
     whatItDoes:
-      "The final volume of the plugin, applied after everything else, including the envelope.",
+      "The final volume of the plugin as a percentage of full level, applied after everything else, including the envelope.",
     whatYouHear:
       "Louder or quieter, nothing else changes. Use it to match the synth against the other instruments in a project.",
-    format: (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`,
+    format: percent,
   },
 ];
 
@@ -211,14 +211,14 @@ export const PATCH_KEY: Record<string, keyof PatchValues> = {
 };
 
 export const DEFAULT_PATCH: PatchValues = {
-  wavetablePosition: 0.3,
-  filterCutoff: 2000,
+  wavetablePosition: 0,
+  filterCutoff: 2500,
   filterResonance: 0.707,
   attack: 0.01,
   decay: 0.3,
   sustain: 0.7,
   release: 0.4,
-  outputGain: 0,
+  outputGain: 0.7,
 };
 
 /** The four DSP stages, in the order the audio travels through them. */
@@ -230,7 +230,7 @@ export const SIGNAL_CHAIN = [
     marker: "STAGE 1 — Wavetable oscillator",
     api: "std::vector<float> table + linear interpolation",
     detail:
-      "Splits a .wav file into up to 256 frames of equal length, then reads the two frames nearest the Position knob and blends between them, sample by sample.",
+      "Slices a loaded .wav into fixed 2048-sample frames (the last one zero-padded), then reads the two frames nearest the Position knob and linearly crossfades between them, sample by sample.",
   },
   {
     stage: 2,
@@ -302,6 +302,31 @@ export const DOWNLOAD_FILES = [
     path: "plugin-juce/Source/PluginEditor.cpp",
     label: "plugin-juce/Source/PluginEditor.cpp",
     note: "Custom look-and-feel and labelled knobs",
+  },
+  {
+    path: "plugin-juce/Source/ModSource.h",
+    label: "plugin-juce/Source/ModSource.h",
+    note: "Modulation-source abstraction reserved for v3",
+  },
+  {
+    path: "plugin-juce/Source/FactoryWaves.h",
+    label: "plugin-juce/Source/FactoryWaves.h",
+    note: "Declares the 24 embedded factory waves",
+  },
+  {
+    path: "plugin-juce/Source/FactoryWaves.cpp",
+    label: "plugin-juce/Source/FactoryWaves.cpp",
+    note: "The factory wave registry",
+  },
+  {
+    path: "plugin-juce/Source/Presets.h",
+    label: "plugin-juce/Source/Presets.h",
+    note: "Factory preset declarations",
+  },
+  {
+    path: "plugin-juce/Source/Presets.cpp",
+    label: "plugin-juce/Source/Presets.cpp",
+    note: "The 8 factory presets",
   },
   {
     path: "shared/parameter_schema.json",

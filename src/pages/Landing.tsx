@@ -58,7 +58,7 @@ function SynthPreview() {
     <div className="border border-border bg-card/40 p-1">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="label-mono">Koola10 Synth</span>
-        <span className="label-mono">VST3 · v1</span>
+        <span className="label-mono">VST3 · v2</span>
       </div>
 
       <div className="border-b border-border px-3 py-4">
@@ -70,10 +70,10 @@ function SynthPreview() {
 
       <div className="grid grid-cols-4 divide-x divide-border">
         {[
-          { label: "Position", value: "30 %" },
-          { label: "Cutoff", value: "2.00 kHz" },
+          { label: "Position", value: "0 %" },
+          { label: "Cutoff", value: "2.50 kHz" },
           { label: "Resonance", value: "0 %" },
-          { label: "Release", value: "400 ms" },
+          { label: "Release", value: "47 %" },
         ].map((knob) => (
           <div key={knob.label} className="flex flex-col items-center gap-2 px-2 py-4">
             <svg viewBox="0 0 40 40" className="size-9" aria-hidden="true">
@@ -128,6 +128,9 @@ export default function Landing() {
             <a href="#signal-chain" className="label-mono hover:text-foreground">
               Signal chain
             </a>
+            <a href="#library" className="label-mono hover:text-foreground">
+              Library
+            </a>
             <a href="#knobs" className="label-mono hover:text-foreground">
               Knobs
             </a>
@@ -163,9 +166,10 @@ export default function Landing() {
             <Reveal delay={0.12}>
               <p className="mt-6 max-w-xl text-[15px] leading-7 text-muted-foreground">
                 Koola10 Synth is a JUCE VST3 instrument built in four honest
-                stages: a wavetable oscillator, a low-pass filter, an ADSR
-                amplitude envelope, and a master level. Eight labelled knobs
-                and nothing hidden behind them.
+                stages: a frame-based wavetable oscillator, a low-pass filter,
+                an ADSR amplitude envelope, and a master level. Eight labelled
+                knobs, 24 factory waves, a searchable browser and eight presets
+                — and nothing hidden behind them.
               </p>
             </Reveal>
             <Reveal delay={0.18}>
@@ -188,8 +192,8 @@ export default function Landing() {
               <div className="mt-10 flex flex-wrap gap-x-10 gap-y-3 border-t border-border pt-6">
                 {[
                   ["8", "labelled parameters"],
-                  ["4", "DSP stages"],
-                  ["256", "max wavetable frames"],
+                  ["24", "factory waves"],
+                  ["2048", "samples per frame"],
                 ].map(([value, label]) => (
                   <div key={label}>
                     <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
@@ -230,6 +234,42 @@ export default function Landing() {
                     <br />
                     {stage.api}
                   </code>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        {/* -------------------------------------------------------------- */}
+        <section id="library" className="border-t border-border py-20">
+          <Reveal>
+            <p className="label-mono">Sound library</p>
+            <h2 className="mt-4 max-w-2xl text-2xl font-bold tracking-tight sm:text-3xl">
+              A browser, 24 factory waves and eight presets — built in.
+            </h2>
+          </Reveal>
+
+          <div className="mt-12 grid gap-px bg-border sm:grid-cols-3">
+            {[
+              [
+                "24 factory waves",
+                "Sub, Bass, Lead, Pad-Keys and FX, embedded in the plugin with juce_add_binary_data so there are no loose files to lose.",
+              ],
+              [
+                "Searchable browser",
+                "A slim left-hand panel groups every wave by category and filters by name as you type. Your own .wav files land in a User group.",
+              ],
+              [
+                "Presets",
+                "Eight factory presets recall a wave plus every knob in one click, and Save / Load round-trips the full state to a .koola10preset file.",
+              ],
+            ].map(([title, description], index) => (
+              <Reveal key={title} delay={index * 0.06} className="bg-background">
+                <div className="h-full p-6">
+                  <h3 className="text-sm font-bold tracking-tight">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {description}
+                  </p>
                 </div>
               </Reveal>
             ))}
@@ -292,9 +332,9 @@ export default function Landing() {
                 Everything you need to build it.
               </h2>
               <p className="mt-5 text-[15px] leading-7 text-muted-foreground">
-                Drop these files into your existing fl-studio-plugins repo, at
-                exactly the paths shown. Nothing else in the project needs to
-                move.
+                Drop these files into your existing koola10-wavetable-synth
+                repo, at exactly the paths shown. Nothing else in the project
+                needs to move.
               </p>
               <div className="mt-8 border-t border-border pt-6">
                 <p className="label-mono">Render path</p>
@@ -333,7 +373,7 @@ export default function Landing() {
               </ul>
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Button asChild variant="outline" className="rounded-none">
-                  <a href="/koola10-synth-v1.zip" download>
+                  <a href="/koola10-synth-v2.zip" download>
                     <Layers className="size-4" />
                     Download all files (.zip)
                   </a>

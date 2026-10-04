@@ -1,6 +1,8 @@
 #include "SynthEngine.h"
 
+#include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace
 {
@@ -8,7 +10,7 @@ namespace
     // the control still feels immediate.
     constexpr double smoothingSeconds = 0.02;
 
-    constexpr int defaultFrameLength = 2048;
+    constexpr int defaultFrameLength = SynthEngine::frameSize;
 }
 
 //==============================================================================
@@ -17,7 +19,7 @@ SynthEngine::SynthEngine()
     buildDefaultTable();
 
     positionSmoother.setCurrentAndTargetValue (0.0f);
-    cutoffSmoother.setCurrentAndTargetValue (2000.0f);
+    cutoffSmoother.setCurrentAndTargetValue (2500.0f);
     gainSmoother.setCurrentAndTargetValue (1.0f);
 }
 
@@ -61,6 +63,12 @@ void SynthEngine::prepare (double newSampleRate, int maximumBlockSize)
     adsr.setSampleRate (sampleRate);
     adsr.setParameters (adsrParameters);
 
+    // --- Modulation sources ----------------------------------------------
+    // Nothing is routed in v2, but a v3 LFO/sequencer would be prepared here.
+    if (auto* source = positionModSource.load())  source->prepare (sampleRate, maximumBlockSize);
+    if (auto* source = pitchModSource.load())     source->prepare (sampleRate, maximumBlockSize);
+    if (auto* source = amplitudeModSource.load()) source->prepare (sampleRate, maximumBlockSize);
+
     reset();
 }
 
@@ -73,8 +81,14 @@ void SynthEngine::reset()
     positionSmoother.setCurrentAndTargetValue (positionSmootherTarget.load());
     cutoffSmoother.setCurrentAndTargetValue (cutoffSmootherTarget.load());
     gainSmoother.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (gainDecibelsTarget.load()));
+
+    if (auto* source = positionModSource.load())  source->reset();
+    if (auto* source = pitchModSource.load())     source->reset();
+    if (auto* source = amplitudeModSource.load()) source->reset();
 }
 
+//==============================================================================
+// Wavetable loading
 //==============================================================================
 bool SynthEngine::loadWavetableFile (const juce::File& file)
 {
@@ -86,64 +100,102 @@ bool SynthEngine::loadWavetableFile (const juce::File& file)
 
     std::unique_ptr<juce::AudioFormatReader> reader (formats.createReaderFor (file));
 
-    if (reader == nullptr || reader->lengthInSamples < 64)
+    if (reader == nullptr)
+        return false;
+
+    return installFromReader (*reader, file.getFileNameWithoutExtension());
+}
+
+bool SynthEngine::loadWavetableFromMemory (const void* data, size_t numBytes,
+                                           const juce::String& displayName)
+{
+    if (data == nullptr || numBytes == 0)
+        return false;
+
+    // The factory waves are plain WAV files, so we can decode them straight
+    // from the static bytes that juce_add_binary_data baked into the binary.
+    juce::WavAudioFormat wavFormat;
+    juce::MemoryInputStream stream (data, numBytes, false); // does not own `data`
+
+    std::unique_ptr<juce::AudioFormatReader> reader (wavFormat.createReaderFor (&stream, false));
+
+    if (reader == nullptr)
+        return false;
+
+    return installFromReader (*reader, displayName);
+}
+
+bool SynthEngine::installFromReader (juce::AudioFormatReader& reader, const juce::String& displayName)
+{
+    if (reader.lengthInSamples < 64)
         return false;
 
     const int totalSamples = static_cast<int> (
-        juce::jmin (reader->lengthInSamples, static_cast<juce::int64> (1 << 24)));
+        juce::jmin (reader.lengthInSamples, static_cast<juce::int64> (maxInputSamples)));
+    const int numChannels = juce::jmax (1, static_cast<int> (reader.numChannels));
 
-    // --- Guess the frame length ------------------------------------------
-    // Wavetables are usually stored as N frames of a fixed size, e.g.
-    // 64 frames x 2048 samples. Try the common sizes first and accept the first
-    // one that divides the file into 1..256 whole frames.
-    int chosenFrameLength = 0;
-    int chosenNumFrames   = 0;
-
-    for (int candidate : { 2048, 1024, 512, 256, 128, 64 })
-    {
-        if (totalSamples % candidate != 0)
-            continue;
-
-        const int frames = totalSamples / candidate;
-
-        if (frames >= 1 && frames <= maxFrames)
-        {
-            chosenFrameLength = candidate;
-            chosenNumFrames = frames;
-            break;
-        }
-    }
-
-    if (chosenFrameLength == 0)
-    {
-        // Not a tidy multi-frame table: treat the whole file as ONE frame.
-        chosenFrameLength = totalSamples;
-        chosenNumFrames = 1;
-    }
-
-    // --- Read the file into memory ---------------------------------------
-    juce::AudioBuffer<float> fileBuffer (static_cast<int> (reader->numChannels), totalSamples);
-    reader->read (&fileBuffer, 0, totalSamples, 0, true, true);
+    juce::AudioBuffer<float> fileBuffer (numChannels, totalSamples);
+    reader.read (&fileBuffer, 0, totalSamples, 0, true, true);
 
     // Collapse to mono: a wavetable is a shape, not a stereo image.
     std::vector<float> mono (static_cast<size_t> (totalSamples), 0.0f);
 
-    for (int ch = 0; ch < fileBuffer.getNumChannels(); ++ch)
-        for (int i = 0; i < totalSamples; ++i)
-            mono[static_cast<size_t> (i)] += fileBuffer.getSample (ch, i);
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        const auto* source = fileBuffer.getReadPointer (ch);
 
-    const float channelScale = 1.0f / static_cast<float> (juce::jmax (1, fileBuffer.getNumChannels()));
+        for (int i = 0; i < totalSamples; ++i)
+            mono[static_cast<size_t> (i)] += source[i];
+    }
+
+    const float channelScale = 1.0f / static_cast<float> (numChannels);
 
     for (auto& sample : mono)
         sample *= channelScale;
 
-    // --- Hand the new table to the audio thread --------------------------
+    return installFromMono (std::move (mono), displayName);
+}
+
+bool SynthEngine::installFromMono (std::vector<float> mono, const juce::String& displayName)
+{
+    if (mono.size() < 64)
+        return false;
+
+    const int totalSamples = static_cast<int> (mono.size());
+
+    int newFrameLength = 0;
+    int newNumFrames = 0;
+    std::vector<float> newTable;
+
+    if (totalSamples <= frameSize)
+    {
+        // Short file: one whole frame, exactly like v1.
+        newFrameLength = totalSamples;
+        newNumFrames = 1;
+        newTable = std::move (mono);
+    }
+    else
+    {
+        // Slice into fixed 2048-sample frames; the final short frame is
+        // zero-padded so every frame has the same length.
+        newFrameLength = frameSize;
+        newNumFrames = juce::jmin (maxFrames, (totalSamples + frameSize - 1) / frameSize);
+
+        const size_t needed = static_cast<size_t> (newNumFrames)
+                            * static_cast<size_t> (newFrameLength);
+        newTable.assign (needed, 0.0f);
+
+        const size_t samplesToCopy = juce::jmin (needed, mono.size());
+        std::copy (mono.begin(), mono.begin() + static_cast<std::ptrdiff_t> (samplesToCopy),
+                   newTable.begin());
+    }
+
     {
         const juce::SpinLock::ScopedLockType lock (tableLock);
-        table = std::move (mono);
-        frameLength = chosenFrameLength;
-        numFrames = chosenNumFrames;
-        wavetableName = file.getFileNameWithoutExtension();
+        table = std::move (newTable);
+        frameLength = newFrameLength;
+        numFrames = newNumFrames;
+        wavetableName = displayName;
     }
 
     return true;
@@ -155,6 +207,18 @@ juce::String SynthEngine::getWavetableName() const
     return wavetableName;
 }
 
+int SynthEngine::getNumFrames() const
+{
+    const juce::SpinLock::ScopedLockType lock (tableLock);
+    return numFrames;
+}
+
+int SynthEngine::getFrameLength() const
+{
+    const juce::SpinLock::ScopedLockType lock (tableLock);
+    return frameLength;
+}
+
 void SynthEngine::fillDisplayPoints (float* dest, int numPoints) const
 {
     const juce::SpinLock::ScopedLockType lock (tableLock);
@@ -162,12 +226,20 @@ void SynthEngine::fillDisplayPoints (float* dest, int numPoints) const
     if (numFrames <= 0 || frameLength <= 0 || numPoints <= 0)
         return;
 
-    const float position = positionSmoother.getCurrentValue();
-    const int frame = juce::jlimit (0, numFrames - 1,
-                                    static_cast<int> (std::lround (position * static_cast<float> (numFrames - 1))));
+    const float position = juce::jlimit (0.0f, 1.0f, positionSmoother.getCurrentValue());
+    const float framePosition = position * static_cast<float> (juce::jmax (0, numFrames - 1));
+    const int frameA = juce::jlimit (0, numFrames - 1, static_cast<int> (framePosition));
+    const int frameB = juce::jmin (frameA + 1, numFrames - 1);
+    const float morph = framePosition - static_cast<float> (frameA);
 
+    // Draw the same post-crossfade frame the oscillator is playing.
     for (int i = 0; i < numPoints; ++i)
-        dest[i] = sampleAt (frame, static_cast<double> (i) / static_cast<double> (numPoints));
+    {
+        const double phaseForPoint = static_cast<double> (i) / static_cast<double> (numPoints);
+        const float sampleA = sampleAt (frameA, phaseForPoint);
+        const float sampleB = sampleAt (frameB, phaseForPoint);
+        dest[i] = sampleA + (sampleB - sampleA) * morph;
+    }
 }
 
 //==============================================================================
@@ -223,6 +295,29 @@ void SynthEngine::setMasterGainDecibels (float decibels)
     gainDecibelsTarget.store (juce::jlimit (-60.0f, 12.0f, decibels));
 }
 
+void SynthEngine::setModulation (ModTarget target, ModSource* source, float depth)
+{
+    const float clampedDepth = juce::jlimit (0.0f, 1.0f, depth);
+
+    switch (target)
+    {
+        case ModTarget::wavetablePosition:
+            positionModDepth.store (clampedDepth);
+            positionModSource.store (source);
+            break;
+
+        case ModTarget::pitch:
+            pitchModDepth.store (clampedDepth);
+            pitchModSource.store (source);
+            break;
+
+        case ModTarget::amplitude:
+            amplitudeModDepth.store (clampedDepth);
+            amplitudeModSource.store (source);
+            break;
+    }
+}
+
 //==============================================================================
 void SynthEngine::noteOn (int midiNoteNumber, float velocity)
 {
@@ -234,11 +329,19 @@ void SynthEngine::noteOn (int midiNoteNumber, float velocity)
     // Start each new note from the top of the wave so short notes are predictable.
     phase = 0.0;
     adsr.noteOn();
+
+    if (auto* source = positionModSource.load())  source->noteOn();
+    if (auto* source = pitchModSource.load())     source->noteOn();
+    if (auto* source = amplitudeModSource.load()) source->noteOn();
 }
 
 void SynthEngine::noteOff()
 {
     adsr.noteOff();
+
+    if (auto* source = positionModSource.load())  source->noteOff();
+    if (auto* source = pitchModSource.load())     source->noteOff();
+    if (auto* source = amplitudeModSource.load()) source->noteOff();
 }
 
 void SynthEngine::allNotesOff()
@@ -285,11 +388,28 @@ void SynthEngine::process (juce::AudioBuffer<float>& buffer, int startSample, in
     // ======================================================================
     // STAGE 1 — Wavetable oscillator
     // Turn the position knob (0..1) into a place in the table, then read the
-    // two neighbouring frames and blend between them.
+    // two neighbouring frames and crossfade between them.
     // ======================================================================
     positionSmoother.setTargetValue (positionSmootherTarget.load());
 
     const bool voiceIsRunning = (numFrames > 0) && adsr.isActive();
+
+    // Modulation routings are lock-free; read them once for the whole block.
+    // v2 routes nothing, so these are all inactive and cost only a load.
+    auto* positionMod = positionModSource.load();
+    const float positionDepth = positionModDepth.load();
+    const bool positionModActive = positionMod != nullptr && positionDepth != 0.0f
+                                 && positionMod->isActive();
+
+    auto* pitchMod = pitchModSource.load();
+    const float pitchDepth = pitchModDepth.load();
+    const bool pitchModActive = pitchMod != nullptr && pitchDepth != 0.0f
+                              && pitchMod->isActive();
+
+    auto* amplitudeMod = amplitudeModSource.load();
+    const float amplitudeDepth = amplitudeModDepth.load();
+    const bool amplitudeModActive = amplitudeMod != nullptr && amplitudeDepth != 0.0f
+                                  && amplitudeMod->isActive();
 
     if (voiceIsRunning)
     {
@@ -298,7 +418,11 @@ void SynthEngine::process (juce::AudioBuffer<float>& buffer, int startSample, in
 
         for (int i = 0; i < numSamples; ++i)
         {
-            const float position = positionSmoother.getNextValue();
+            float position = positionSmoother.getNextValue();
+
+            if (positionModActive)
+                position = juce::jlimit (0.0f, 1.0f,
+                                         position + positionDepth * positionMod->getValue (i));
 
             const float framePosition = position * static_cast<float> (juce::jmax (0, numFrames - 1));
             const int frameA = juce::jlimit (0, numFrames - 1, static_cast<int> (framePosition));
@@ -307,17 +431,35 @@ void SynthEngine::process (juce::AudioBuffer<float>& buffer, int startSample, in
 
             const float sampleA = sampleAt (frameA, phase);
             const float sampleB = sampleAt (frameB, phase);
-            const float value = sampleA + (sampleB - sampleA) * morph;
+            float value = sampleA + (sampleB - sampleA) * morph;
+
+            if (amplitudeModActive)
+            {
+                const float gate = juce::jlimit (0.0f, 1.0f, amplitudeMod->getValue (i));
+                value *= (1.0f - amplitudeDepth) + amplitudeDepth * gate;
+            }
 
             left[i] = value;
 
             if (right != nullptr)
                 right[i] = value;
 
-            phase += phaseIncrement;
+            double increment = phaseIncrement;
 
-            if (phase >= 1.0)
+            if (pitchModActive)
+            {
+                const float bipolar = 2.0f * pitchMod->getValue (i) - 1.0f;
+                const float semitones = pitchDepth * bipolar;
+                increment = phaseIncrement * std::pow (2.0, static_cast<double> (semitones) / 12.0);
+            }
+
+            phase += increment;
+
+            while (phase >= 1.0)
                 phase -= 1.0;
+
+            while (phase < 0.0)
+                phase += 1.0;
         }
     }
     else

@@ -144,17 +144,22 @@ cmake --build build --config Release`}</code>
               all export wavetables as plain .wav, so those work directly.
             </li>
             <li>
-              The engine tests frame sizes of 2048, 1024, 512, 256, 128 and 64
-              samples and takes the first one that divides the file into 1 to
-              256 whole frames.
+              The engine slices the audio into fixed 2048-sample frames, and
+              zero-pads a short final frame so every frame is the same length.
+              A 74-second beat becomes a long table you can sweep through.
             </li>
             <li>
-              A single-cycle waveform becomes a one-frame table, and the
-              Position knob then has nothing to travel across.
+              A file of 2048 samples or fewer loads as a single frame, exactly
+              like v1 — the Position knob then has nothing to travel across.
             </li>
             <li>
               Stereo files are averaged down to mono, because a wavetable is a
               shape rather than a stereo image.
+            </li>
+            <li>
+              The 24 factory waves are embedded in the plugin with
+              juce_add_binary_data, so the browser is populated with no files
+              to install.
             </li>
           </ul>
         </div>
@@ -177,8 +182,8 @@ cmake --build build --config Release`}</code>
       <section className="border-t border-border pt-10">
         <h2 className="label-mono">Source files</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Drop these into your existing fl-studio-plugins repo at exactly the
-          paths shown. Nothing else in the project needs to move.
+          Drop these into your existing koola10-wavetable-synth repo at exactly
+          the paths shown. Nothing else in the project needs to move.
         </p>
 
         <ul className="mt-6 divide-y divide-border border-y border-border">
@@ -207,7 +212,7 @@ cmake --build build --config Release`}</code>
         </ul>
 
         <Button asChild variant="outline" className="mt-6 rounded-none">
-          <a href="/koola10-synth-v1.zip" download>
+          <a href="/koola10-synth-v2.zip" download>
             <Download className="size-4" />
             Download all files (.zip)
           </a>
