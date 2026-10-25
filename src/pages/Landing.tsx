@@ -131,6 +131,9 @@ export default function Landing() {
             <a href="#library" className="label-mono hover:text-foreground">
               Library
             </a>
+            <a href="#rack" className="label-mono hover:text-foreground">
+              Rack
+            </a>
             <a href="#knobs" className="label-mono hover:text-foreground">
               Knobs
             </a>
@@ -324,6 +327,104 @@ export default function Landing() {
         </section>
 
         {/* -------------------------------------------------------------- */}
+        <section id="rack" className="border-t border-border py-20">
+          <div className="grid gap-12 lg:grid-cols-12">
+            <Reveal className="lg:col-span-4">
+              <p className="label-mono">The rack</p>
+              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+                One instrument at a time, starting with the drums.
+              </h2>
+              <p className="mt-5 text-[15px] leading-7 text-muted-foreground">
+                Every beat starts with the drums, so the drum machine came
+                first. Each instrument is its own plugin in the same repo, with
+                its own folder and its own VST3 — building one never touches
+                another.
+              </p>
+              <Button asChild variant="outline" className="mt-6 rounded-none">
+                <a href="/koola10-drum-machine-v1.zip" download>
+                  <Download className="size-4" />
+                  Download the drum machine
+                </a>
+              </Button>
+            </Reveal>
+
+            <Reveal delay={0.08} className="lg:col-span-8">
+              <ul className="divide-y divide-border border-y border-border">
+                {[
+                  {
+                    number: "01",
+                    name: "Drum machine",
+                    status: "Available",
+                    description:
+                      "Eight synthesised pads, a 16-step grid, swing and one shared low-pass filter.",
+                    available: true,
+                  },
+                  {
+                    number: "02",
+                    name: "Sampler",
+                    status: "Next",
+                    description:
+                      "Load and slice your own hits. The drum machine stays sample-free on purpose.",
+                    available: false,
+                  },
+                  {
+                    number: "03",
+                    name: "FM synth",
+                    status: "Planned",
+                    description: "Two-operator FM for bells, basses and metallic tones.",
+                    available: false,
+                  },
+                  {
+                    number: "04",
+                    name: "Keys",
+                    status: "Planned",
+                    description: "A playable keyboard instrument in the same panel language.",
+                    available: false,
+                  },
+                  {
+                    number: "05",
+                    name: "Bass machine",
+                    status: "Planned",
+                    description: "A mono bass with its own filter and drive.",
+                    available: false,
+                  },
+                ].map((item) => (
+                  <li key={item.name} className="flex flex-col gap-3 py-5 sm:flex-row sm:items-baseline sm:gap-6">
+                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                      {item.number}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-bold tracking-tight">{item.name}</h3>
+                        <span
+                          className={`label-mono ${
+                            item.available ? "text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                    {item.available ? (
+                      <a
+                        href="/koola10-drum-machine-v1.zip"
+                        download
+                        className="label-mono shrink-0 hover:text-foreground"
+                      >
+                        Download
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------------------- */}
         <section id="downloads" className="border-t border-border py-20">
           <div className="grid gap-12 lg:grid-cols-12">
             <Reveal className="lg:col-span-4">
@@ -375,10 +476,16 @@ export default function Landing() {
                 <Button asChild variant="outline" className="rounded-none">
                   <a href="/koola10-synth-v2.zip" download>
                     <Layers className="size-4" />
-                    Download all files (.zip)
+                    Synth: all files (.zip)
                   </a>
                 </Button>
-                <span className="label-mono">Single archive, same layout</span>
+                <Button asChild variant="outline" className="rounded-none">
+                  <a href="/koola10-drum-machine-v1.zip" download>
+                    <Layers className="size-4" />
+                    Drum machine (.zip)
+                  </a>
+                </Button>
+                <span className="label-mono">Same layout, separate plugins</span>
               </div>
             </Reveal>
           </div>
