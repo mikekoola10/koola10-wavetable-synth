@@ -271,9 +271,9 @@ cmake --build build --config Release`}</code>
         </ul>
         <p className="mt-6 text-xs leading-6 text-muted-foreground">
           Not in v1, on purpose: sample loading and slicing (that is the sampler,
-          next in the rack), FM, keys and bass instruments, vocal processing,
-          song mode and per-step velocity. The piano roll carries velocity
-          instead.
+          now in the rack — slicing is still a later update), FM, keys and bass
+          instruments, vocal processing, song mode and per-step velocity. The
+          piano roll carries velocity instead.
         </p>
       </section>
     </div>

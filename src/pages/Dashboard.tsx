@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/dashboard", label: "Patch library", end: true },
   { to: "/dashboard/drum-machine", label: "Drum machine", end: false },
+  { to: "/dashboard/sampler", label: "Sampler", end: false },
   { to: "/dashboard/signal-chain", label: "Signal chain", end: false },
   { to: "/dashboard/build-guide", label: "Build guide", end: false },
 ];

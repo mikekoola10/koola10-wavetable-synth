@@ -332,20 +332,29 @@ export default function Landing() {
             <Reveal className="lg:col-span-4">
               <p className="label-mono">The rack</p>
               <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-                One instrument at a time, starting with the drums.
+                One instrument at a time, drums first, samples second.
               </h2>
               <p className="mt-5 text-[15px] leading-7 text-muted-foreground">
                 Every beat starts with the drums, so the drum machine came
-                first. Each instrument is its own plugin in the same repo, with
-                its own folder and its own VST3 — building one never touches
-                another.
+                first. The sampler came next, so the sounds you already own
+                became an instrument. Each one is its own plugin in the same
+                repo, with its own folder and its own VST3 — building one never
+                touches another.
               </p>
-              <Button asChild variant="outline" className="mt-6 rounded-none">
-                <a href="/koola10-drum-machine-v1.zip" download>
-                  <Download className="size-4" />
-                  Download the drum machine
-                </a>
-              </Button>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Button asChild variant="outline" className="rounded-none">
+                  <a href="/koola10-drum-machine-v1.zip" download>
+                    <Download className="size-4" />
+                    Drum machine
+                  </a>
+                </Button>
+                <Button asChild variant="outline" className="rounded-none">
+                  <a href="/koola10-sampler-v1.zip" download>
+                    <Download className="size-4" />
+                    Sampler
+                  </a>
+                </Button>
+              </div>
             </Reveal>
 
             <Reveal delay={0.08} className="lg:col-span-8">
@@ -357,36 +366,36 @@ export default function Landing() {
                     status: "Available",
                     description:
                       "Eight synthesised pads, a 16-step grid, swing and one shared low-pass filter.",
-                    available: true,
+                    href: "/koola10-drum-machine-v1.zip",
                   },
                   {
                     number: "02",
                     name: "Sampler",
-                    status: "Next",
+                    status: "Available",
                     description:
-                      "Load and slice your own hits. The drum machine stays sample-free on purpose.",
-                    available: false,
+                      "Eight slots, WAV and MP3, sixteen voices. Your own hits, pitched across the keyboard and trimmed by ear.",
+                    href: "/koola10-sampler-v1.zip",
                   },
                   {
                     number: "03",
                     name: "FM synth",
                     status: "Planned",
                     description: "Two-operator FM for bells, basses and metallic tones.",
-                    available: false,
+                    href: null,
                   },
                   {
                     number: "04",
                     name: "Keys",
                     status: "Planned",
                     description: "A playable keyboard instrument in the same panel language.",
-                    available: false,
+                    href: null,
                   },
                   {
                     number: "05",
                     name: "Bass machine",
                     status: "Planned",
                     description: "A mono bass with its own filter and drive.",
-                    available: false,
+                    href: null,
                   },
                 ].map((item) => (
                   <li key={item.name} className="flex flex-col gap-3 py-5 sm:flex-row sm:items-baseline sm:gap-6">
@@ -398,7 +407,7 @@ export default function Landing() {
                         <h3 className="text-sm font-bold tracking-tight">{item.name}</h3>
                         <span
                           className={`label-mono ${
-                            item.available ? "text-foreground" : "text-muted-foreground"
+                            item.href ? "text-foreground" : "text-muted-foreground"
                           }`}
                         >
                           {item.status}
@@ -408,9 +417,9 @@ export default function Landing() {
                         {item.description}
                       </p>
                     </div>
-                    {item.available ? (
+                    {item.href ? (
                       <a
-                        href="/koola10-drum-machine-v1.zip"
+                        href={item.href}
                         download
                         className="label-mono shrink-0 hover:text-foreground"
                       >
@@ -483,6 +492,12 @@ export default function Landing() {
                   <a href="/koola10-drum-machine-v1.zip" download>
                     <Layers className="size-4" />
                     Drum machine (.zip)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" className="rounded-none">
+                  <a href="/koola10-sampler-v1.zip" download>
+                    <Layers className="size-4" />
+                    Sampler (.zip)
                   </a>
                 </Button>
                 <span className="label-mono">Same layout, separate plugins</span>

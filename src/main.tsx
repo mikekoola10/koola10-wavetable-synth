@@ -16,6 +16,7 @@ const Patches = lazy(() => import("./pages/dashboard/Patches.tsx"));
 const SignalChain = lazy(() => import("./pages/dashboard/SignalChain.tsx"));
 const BuildGuide = lazy(() => import("./pages/dashboard/BuildGuide.tsx"));
 const DrumMachine = lazy(() => import("./pages/dashboard/DrumMachine.tsx"));
+const Sampler = lazy(() => import("./pages/dashboard/Sampler.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -140,6 +141,7 @@ createRoot(document.getElementById("root")!).render(
               >
                 <Route index element={<Patches />} />
                 <Route path="drum-machine" element={<DrumMachine />} />
+                <Route path="sampler" element={<Sampler />} />
                 <Route path="signal-chain" element={<SignalChain />} />
                 <Route path="build-guide" element={<BuildGuide />} />
               </Route>

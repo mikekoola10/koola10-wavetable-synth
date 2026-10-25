@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0.0",
+  "plugin": {
+    "name": "Koola10 Sampler",
+    "version": "1.0.0",
+    "manufacturer": "Koola10",
+    "plugin_code": "Ks10",
+    "formats": ["VST3", "Standalone"],
+    "is_instrument": true,
+    "accepts_midi": true,
+    "output": "stereo",
+    "file_formats": ["WAV", "MP3"],
+    "visual_theme": "dark minimalist, monochrome, hairline dividers"
+  },
+  "readout_conventions": {
+    "percent_parameters": "0.0 - 1.0 shown as 0 - 100 %",
+    "cutoff": "always shown in kHz, e.g. 12.00 kHz",
+    "resonance": "0.707 (neutral) to 10.0, shown as a percentage of the travel"
+  },
+  "slots": {
+    "count": 8,
+    "root_note": 60,
+    "root_note_explanation": "MIDI 60. C3 in JUCE's octave numbering, C5 on FL Studio's piano roll. A sample plays at its recorded pitch when a note of 60 arrives and Tune is at 50 %.",
+    "voices": 16,
+    "voice_stealing": "the oldest sounding voice is reused when all sixteen are busy",
+    "keyboard_routing": "the keyboard plays the slot marked KEYS (state property play_slot); clicking a slot's waveform auditions that slot at the root note",
+    "max_length_seconds": 120,
+    "missing_file_behaviour": "the slot keeps the file name it was saved with, shows it in red and stays silent; nothing crashes",
+    "ids": ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8"],
+    "names": ["Slot 1", "Slot 2", "Slot 3", "Slot 4", "Slot 5", "Slot 6", "Slot 7", "Slot 8"]
+  },
+  "slot_parameters": [
+    {
+      "suffix": "tune",
+      "id_pattern": "slot{n}_tune",
+      "name_pattern": "Slot {n} Tune",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.5,
+      "unit": "%",
+      "what_it_does": "Pitches the whole slot. 0 % is two octaves down, 50 % is the file at the pitch it was recorded at, 100 % is two octaves up.",
+      "what_you_hear": "Lower is a fatter, slower sound; higher is thinner and faster. It moves the note the sample sits at, so the keyboard tracks from there."
+    },
+    {
+      "suffix": "level",
+      "id_pattern": "slot{n}_level",
+      "name_pattern": "Slot {n} Level",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.8,
+      "unit": "%",
+      "what_it_does": "How loud this slot is, before the shared filter and the master level.",
+      "what_you_hear": "The slot sitting under or over the others. It changes the balance, not the tone."
+    },
+    {
+      "suffix": "attack",
+      "id_pattern": "slot{n}_attack",
+      "name_pattern": "Slot {n} Attack",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.02,
+      "unit": "%",
+      "what_it_does": "Fade-in time, 1 ms at 0 % to about 2 s at 100 %.",
+      "what_you_hear": "A hard edge at the bottom of the knob, a soft swell at the top. The default is short enough to be inaudible but long enough to stop a click."
+    },
+    {
+      "suffix": "release",
+      "id_pattern": "slot{n}_release",
+      "name_pattern": "Slot {n} Release",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.25,
+      "unit": "%",
+      "what_it_does": "Fade-out time after a note-off on a looped slot, 5 ms at 0 % to about 3 s at 100 %.",
+      "what_you_hear": "A loop that stops dead, or one that fades away like a sustaining instrument. One-shots ignore it: they always play to the end."
+    },
+    {
+      "suffix": "start",
+      "id_pattern": "slot{n}_start",
+      "name_pattern": "Slot {n} Start",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.0,
+      "unit": "%",
+      "what_it_does": "Where playback begins, as a percentage of the file.",
+      "what_you_hear": "Dead air at the head of a sample disappears, so the hit lands on the beat instead of after it."
+    },
+    {
+      "suffix": "end",
+      "id_pattern": "slot{n}_end",
+      "name_pattern": "Slot {n} End",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 1.0,
+      "unit": "%",
+      "what_it_does": "Where playback ends, as a percentage of the file. In Loop mode this is also the point it wraps back to Start.",
+      "what_you_hear": "The tail of a sample is cut off, which is the other half of making a loop that does not trail under the next bar."
+    }
+  ],
+  "mode_parameters": [
+    {
+      "id_pattern": "slot{n}_mode",
+      "name_pattern": "Slot {n} Play Mode",
+      "type": "choice",
+      "choices": ["One-Shot", "Loop"],
+      "default": 0,
+      "what_it_does": "One-Shot plays from Start to End and stops, whatever the note does. Loop repeats between Start and End for as long as the note is held.",
+      "what_you_hear": "A drum hit or a vocal stab that always finishes, or a sustained sound you can hold."
+    }
+  ],
+  "global_parameters": [
+    {
+      "id": "filter_cutoff",
+      "name": "Filter Cutoff",
+      "group": "Filter",
+      "min": 20.0,
+      "max": 20000.0,
+      "step": 1.0,
+      "default": 12000.0,
+      "unit": "kHz",
+      "curve": "log",
+      "what_it_does": "Sets where the shared low-pass filter starts rolling off all eight slots.",
+      "what_you_hear": "Down goes dark and muffled, up opens to full brightness."
+    },
+    {
+      "id": "filter_resonance",
+      "name": "Filter Resonance",
+      "group": "Filter",
+      "min": 0.1,
+      "max": 10.0,
+      "step": 0.001,
+      "default": 0.707,
+      "unit": "%",
+      "what_it_does": "How much the filter emphasises the frequencies right at the cutoff. 0.707 is neutral.",
+      "what_you_hear": "A whistle appears at the cutoff and the sound takes on a squelchy character."
+    },
+    {
+      "id": "master_level",
+      "name": "Master Level",
+      "group": "Output",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.001,
+      "default": 0.8,
+      "unit": "%",
+      "what_it_does": "The final volume of the whole plugin, after the filter.",
+      "what_you_hear": "Louder or quieter, nothing else changes."
+    }
+  ],
+  "parameter_count": 59,
+  "parameter_ids": [
+    "slot1_tune", "slot1_level", "slot1_attack", "slot1_release", "slot1_start", "slot1_end", "slot1_mode",
+    "slot2_tune", "slot2_level", "slot2_attack", "slot2_release", "slot2_start", "slot2_end", "slot2_mode",
+    "slot3_tune", "slot3_level", "slot3_attack", "slot3_release", "slot3_start", "slot3_end", "slot3_mode",
+    "slot4_tune", "slot4_level", "slot4_attack", "slot4_release", "slot4_start", "slot4_end", "slot4_mode",
+    "slot5_tune", "slot5_level", "slot5_attack", "slot5_release", "slot5_start", "slot5_end", "slot5_mode",
+    "slot6_tune", "slot6_level", "slot6_attack", "slot6_release", "slot6_start", "slot6_end", "slot6_mode",
+    "slot7_tune", "slot7_level", "slot7_attack", "slot7_release", "slot7_start", "slot7_end", "slot7_mode",
+    "slot8_tune", "slot8_level", "slot8_attack", "slot8_release", "slot8_start", "slot8_end", "slot8_mode",
+    "filter_cutoff", "filter_resonance", "master_level"
+  ],
+  "non_automatable_state": {
+    "slot_paths": "slot1_path ... slot8_path, absolute paths in the plugin state tree",
+    "slot_names": "slot1_name ... slot8_name, the file name shown on the panel",
+    "play_slot": "which slot the keyboard plays (0 - 7)"
+  },
+  "signal_chain": [
+    {
+      "stage": 1,
+      "name": "Sixteen sample voices",
+      "file": "plugin-juce/Source/SamplerEngine.cpp",
+      "marker": "STAGE 1 — Sixteen sample voices, summed",
+      "api": "4-point interpolated playback at 2^((note - 60 + tune) / 12), mono or stereo source"
+    },
+    {
+      "stage": 2,
+      "name": "Shared low-pass filter",
+      "file": "plugin-juce/Source/SamplerEngine.cpp",
+      "marker": "STAGE 2 — Shared low-pass filter (juce::dsp), one per output channel",
+      "api": "juce::dsp::StateVariableTPTFilter<float>"
+    },
+    {
+      "stage": 3,
+      "name": "Master level",
+      "file": "plugin-juce/Source/SamplerEngine.cpp",
+      "marker": "STAGE 3 — Master level, then a plain clamp",
+      "api": "linear ramp across the block + applyGainRamp + safety clamp"
+    }
+  ]
+}
